@@ -33,7 +33,7 @@ SCHEDULE_RUNNER_SOURCE = os.path.join(
     os.path.realpath(os.path.join(os.path.dirname(__file__))), "run_scheduler.py"
 )
 SCHEDULE_RUNNER_TARGET = os.path.join(UT_DIR_PATH, "zzz_run_scheduler.py")
-RX_RESULT = re.compile(r"^(?P<result>OK|FAILED|ERROR)", re.MULTILINE)
+RX_RESULT = re.compile(r"^(?P<result>[oO][kK]|FAILED|ERROR)", re.MULTILINE)
 RX_DONE = re.compile(r"^UnitTesting: Done\.$", re.MULTILINE)
 
 _is_windows = sys.platform == "win32"
@@ -127,25 +127,33 @@ def read_output(path, timeout=5 * 60):
     linebuffer = [""]
 
     def check_is_success(result):
+        print("checking success for", result)
         try:
-            return RX_RESULT.search(result).group("result") == "OK"
+            return RX_RESULT.search(result).group("result").upper() == "OK"
         except AttributeError:
             return success
 
     lock = threading.Lock()
 
     def reader():
+        print("reader opening", path)
         with open(path, "r") as f:
             while not done:
                 offset = f.tell()
                 line = f.readline()
+                print("pre-read offset:", offset, "line:", line, "post-read offset:", f.tell())
                 if line.endswith("\n"):
+                    print("line ends with nl, appending")
                     with lock:
                         lines.append(line)
+                        print("appended")
                 else:
+                    print("no nl")
                     with lock:
+                        print("adding line to head of linebuffer", line, linebuffer)
                         linebuffer[0] = line
-                    f.seek(offset)
+                        print("seeking to offset before a quick nap")
+                        f.seek(offset)
                     time.sleep(0.2)
 
     # run the reader in thread to avoid blocking
@@ -153,8 +161,13 @@ def read_output(path, timeout=5 * 60):
     t.start()
     last_update_time = time.time()
 
+    print("for sake of debug")
+    print("RX_DONE", RX_DONE)
+    print("RX_RESULT", RX_RESULT)
+
     while not done:
         if time.time() - last_update_time > timeout:
+            print("timeout-induced read from linebuffer", linebuffer)
             with lock:
                 print(linebuffer[0])
             done = True
@@ -162,9 +175,11 @@ def read_output(path, timeout=5 * 60):
 
         # consume one line
         with lock:
+            print("trying to pop accumulated lines", lines, "last_update", last_update_time)
             if lines:
                 last_update_time = time.time()
                 line = lines.pop(0)
+                print("popped", line, "last_update", last_update_time)
             else:
                 line = None
 
@@ -175,6 +190,7 @@ def read_output(path, timeout=5 * 60):
         print(line, end="")
         # Keep checking while we don't have a definite result.
         success = check_is_success(line)
+        print("success condition?", success)
 
         if RX_DONE.search(line) is not None:
             done = True
@@ -252,6 +268,10 @@ def main(default_schedule_info):
         print("Timeout: output is frozen.")
         delete_file_if_exists(SCHEDULE_RUNNER_TARGET)
         kill_sublime_text()
+        # print errors recorded by ST
+        if os.path.isfile(log_file):
+            with open(log_file) as f:
+                print(f.read())
         sys.exit(1)
     else:
         restore_coverage_report(report_file)

@@ -58,6 +58,8 @@ class DeferringTextTestRunner(TextTestRunner):
         startTime = time.perf_counter()
 
         def _start_testing():
+            raise Exception("_start_testing38")
+            self.stream.writeln("_start_testing38")
             with warnings.catch_warnings():
                 if self.warnings:
                     # if self.warnings is set, use it to filter all the warnings
@@ -192,6 +194,7 @@ class DeferringTextTestRunner(TextTestRunner):
 
             infos = []
             if not result.wasSuccessful():
+                raise Exception("nope")
                 self.stream.write("FAILED")
                 failed, errored = len(result.failures), len(result.errors)
                 if failed:
@@ -200,6 +203,7 @@ class DeferringTextTestRunner(TextTestRunner):
                     infos.append("errors=%d" % errored)
             else:
                 self.stream.write("OK")
+                raise Exception("what is the meaning of life?")
             if skipped:
                 infos.append("skipped=%d" % skipped)
             if expectedFails:

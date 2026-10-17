@@ -58,6 +58,8 @@ class DeferringTextTestRunner(TextTestRunner):
         startTime = time.perf_counter()
 
         def _start_testing():
+            raise Exception("_start_testing313")
+            self.stream.writeln("_start_testing313")
             with warnings.catch_warnings():
                 if self.warnings:
                     # if self.warnings is set, use it to filter all the warnings
@@ -83,6 +85,7 @@ class DeferringTextTestRunner(TextTestRunner):
                     _handle_error(e)
 
         def _continue_testing(deferred, send_value=None, throw_value=None):
+            self.stream.write("_continue_testing {:}".format(deferred, send_value, throw_value))
             try:
                 if throw_value:
                     condition = deferred.throw(throw_value)
@@ -119,6 +122,7 @@ class DeferringTextTestRunner(TextTestRunner):
             start_time=None,
             timeout_message=None
         ):
+            self.stream.write("_wait_condition{:}".format(deferred, condition))
             if start_time is None:
                 start_time = time.time()
 
